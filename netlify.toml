@@ -1,0 +1,113 @@
+# netlify.toml
+# Configuração completa para uma aplicação Remix no Netlify
+# Assumindo Remix com Vite e uso de Netlify Edge Functions
+
+# Seção de Build: Define como o Netlify deve construir sua aplicação.
+# As configurações aqui sobrescrevem as definidas na UI do Netlify.
+[build]
+  # Comando de build para projetos Remix usando Vite.
+  # Para projetos com o Remix Classic Compiler, use "remix build".
+  command = "remix vite:build"
+
+  # Diretório onde os arquivos de build estáticos e o bundle do cliente são gerados.
+  # Para projetos com o Remix Classic Compiler, use "public".
+  publish = "build/client"
+
+  # Diretório base do seu projeto, se for um monorepo ou se o netlify.toml não estiver na raiz.
+  # base = "/" # Descomente e ajuste se necessário
+
+  # Ignorar builds se certas condições forem atendidas.
+  # Exemplo: Ignorar builds para commits que contêm "[skip ci]" ou "[skip netlify]".
+  # ignore = "git diff --quiet HEAD^ HEAD." # Exemplo de comando para ignorar se não houver mudanças relevantes
+
+# Seção de Funções: Configurações para Netlify Functions (incluindo Edge Functions).
+[functions]
+  # Diretório onde suas funções (incluindo Edge Functions) estão localizadas.
+  # O Remix Adapter para Netlify geralmente configura isso automaticamente.
+  directory = "netlify/functions"
+  # node_bundler = "esbuild" # Opcional: Especifica o bundler de Node.js para funções
+
+# Redirecionamentos e Reescrevitas: Gerencia o roteamento na borda da CDN do Netlify.
+# Cada [[redirects]] define uma regra. A ordem importa: a primeira regra correspondente é aplicada.
+# Para regras complexas ou em grande volume, considere Netlify Edge Functions.
+# Sintaxe detalhada em: https://docs.netlify.com/routing/redirects/redirect-options/
+
+# Exemplo 1: Redirecionamento permanente (301) de um caminho antigo para um novo.
+# Útil para SEO ao mover páginas.
+[[redirects]]
+  from = "/antigo-url-pagina"
+  to = "/novo-url-pagina"
+  status = 301
+
+# Exemplo 2: Redirecionamento temporário (302) para manutenção ou testes.
+[[redirects]]
+  from = "/em-manutencao"
+  to = "/status-page"
+  status = 302
+
+# Exemplo 3: Reescreve (200) todas as rotas não encontradas para o arquivo index.html.
+# Essencial para Single Page Applications (SPAs) ou para o roteamento do lado do cliente do Remix.
+# O 'force = true' garante que a reescrita ocorra mesmo se houver um arquivo físico no caminho.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = true
+
+# Exemplo 4: Proxy reverso para uma API externa.
+# O Remix pode fazer isso internamente, mas para certas requisições diretas de frontend, pode ser útil.
+# O ':splat' captura o restante do caminho e o passa para o destino.
+[[redirects]]
+  from = "/api/*"
+  to = "https://api.seuservicoexterno.com/:splat"
+  status = 200
+  # headers = { X-Custom-Header = "Valor" } # Opcional: Adicionar cabeçalhos à requisição proxy
+  # signed = "API_SECRET_KEY" # Opcional: Para APIs que exigem assinatura via variável de ambiente
+
+# Exemplo 5: Redirecionamento condicional baseado em país ou idioma.
+[[redirects]]
+  from = "/produto"
+  to = "/produto-br"
+  status = 302
+  conditions = { Country = } # Redireciona usuários do Brasil
+
+[[redirects]]
+  from = "/produto"
+  to = "/product-us"
+  status = 302
+  conditions = { Country = } # Redireciona usuários dos EUA
+
+# Exemplo 6: Redirecionamento para 404 personalizado.
+# Se um caminho não for encontrado, exibe uma página 404 personalizada sem mudar a URL.
+[[redirects]]
+  from = "/nao-existe"
+  to = "/404.html"
+  status = 404
+
+# Cabeçalhos Personalizados: Define cabeçalhos HTTP para respostas do seu site.
+# Útil para segurança, cache e CORS.
+# Sintaxe detalhada em: https://docs.netlify.com/configure-builds/file-based-configuration/#headers
+
+# Exemplo: Cabeçalhos de segurança comuns aplicados a todos os caminhos.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # HTTP Strict Transport Security (HSTS): Garante que o navegador sempre use HTTPS.
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+    # X-Frame-Options: Previne clickjacking.
+    X-Frame-Options = "DENY"
+    # X-Content-Type-Options: Previne "MIME-sniffing" de tipos de conteúdo.
+    X-Content-Type-Options = "nosniff"
+    # Referrer-Policy: Controla o envio de informações de referência.
+    Referrer-Policy = "no-referrer-when-downgrade"
+    # Content-Security-Policy (CSP): Ajuda a mitigar ataques de cross-site scripting (XSS).
+    # Ajuste esta política cuidadosamente para permitir apenas as fontes necessárias.
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.example.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://api.example.com;"
+    # Cache-Control: Define diretivas de cache para o navegador e CDNs.
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# Exemplo: Cabeçalhos específicos para arquivos de assets (CSS, JS, imagens).
+[[headers]]
+  for = "/assets/*" # Ou "/*.{js,css,png,jpg,gif,svg}"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable" # Cache agressivo para assets estáticos
